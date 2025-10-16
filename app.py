@@ -234,9 +234,14 @@ if preset_enable and preset_name != "None (custom)":
 # -----------------------------
 X, Z, dx, dz = make_grid(nx, nz, x_km=x_km, z_km=z_km)
 
-# Seabed/bathymetry as a linear plane from left to right
-z_seabed = np.linspace(water_z, water_z_right, nx)  # meters
-ZSB = np.tile(z_seabed, (nz,1))
+# Seabed/bathymetry: linear plane + optional sinusoidal rugosity
+x_m = np.linspace(0.0, x_km*1000.0, nx)                       # meters
+z_lin = np.linspace(water_z, water_z_right, nx)               # linear tilt
+if enable_rugosity and rug_amp > 0:
+    phase = np.deg2rad(rug_phase_deg)
+    z_seabed = z_lin + rug_amp * np.sin(2*np.pi * x_m / (rug_wlen_km*1000.0) + phase)
+else:
+    z_seabed = z_lin
 
 # Background velocity
 V = np.where(Z < ZSB, v_water, v_sed).astype(float)
