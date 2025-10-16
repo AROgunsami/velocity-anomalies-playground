@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
 
-from app_preset_lib import get_preset, show_preset_note
 
 # -----------------------------
 # Basic helpers
