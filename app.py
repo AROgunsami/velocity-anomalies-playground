@@ -24,13 +24,6 @@ def integrate_vertical_time(v_col, dz):
     return np.sum((1.0 / np.maximum(v_col, 1.0)) * dz)
 
 # -----------------------------
-# (Optional) Preset stub so code never NameErrors
-# -----------------------------
-def get_preset(name, v_sed=2200.0, x_km=4.0, z_km=2.0):
-    # Return None to keep your manual controls; extend if you want real presets.
-    return None
-
-# -----------------------------
 # Eikonal & migration helpers
 # -----------------------------
 def _interp2_linear(V, xo_m, zo_m, xg_m, zg_m):
@@ -146,18 +139,6 @@ st.title("Velocity Modeling — Pull-up & Push-down")
 st.caption("Interactive toy model to illustrate fast/slow bodies and seabed effects on TWT and imaging.")
 
 with st.sidebar:
-    st.header("Presets")
-    preset_name = st.selectbox(
-        "Scenario",
-        ["None (custom)", "Gas pocket (slow, push-down)", "Salt dome (fast, pull-up)",
-         "Basalt flow (fast shallow)", "Shallow channel (slow shallow)", "Tilted seabed (dip)"]
-    )
-    preset_enable = st.checkbox(
-        "Enable preset overrides",
-        value=False,
-        help="When ON, the preset values override manual controls below."
-    )
-
     st.header("Model Setup")
     colA, colB = st.columns(2)
     with colA:
@@ -177,7 +158,7 @@ with st.sidebar:
     water_z       = st.slider("Water depth at left (m)", 0, int(z_km * 1000) - 50, 300, 10)
     water_z_right = st.slider("Water depth at right (m)", 0, int(z_km * 1000) - 50, 300, 10)
 
-    # NEW: Rugose seabed controls
+    # Rugose seabed controls
     enable_rugosity = st.checkbox("Enable rugose seabed (add sinusoid)", value=False)
     if enable_rugosity:
         rug_amp       = st.slider("Rugosity amplitude (m)", 5, 200, 50, 5)
@@ -217,25 +198,11 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Poststack time migration (constant-velocity)")
-    do_mig     = st.checkbox("Show migrated view (Kirchhoff)", value=False)
-    v_mig      = st.number_input("Migration velocity v (m/s)", 1500, 6000, int(v_sed), 50)
+    do_mig      = st.checkbox("Show migrated view (Kirchhoff)", value=False)
+    v_mig       = st.number_input("Migration velocity v (m/s)", 1500, 6000, int(v_sed), 50)
     aperture_km = st.slider("Migration aperture (km)", 0.1, max(0.2, float(x_km)), min(float(x_km) / 3, float(x_km)), 0.1)
-    stride_x   = st.slider("Output x decimation (bigger = faster)", min_value=1, max_value=10, value=4, step=1)
-    stride_t   = st.slider("Output t decimation (bigger = faster)", min_value=1, max_value=10, value=2, step=1)
-
-# -----------------------------
-# Apply preset overrides (no-op by default)
-# -----------------------------
-preset_note = None
-if preset_enable and preset_name != "None (custom)":
-    p = get_preset(preset_name, v_sed=float(v_sed), x_km=float(x_km), z_km=float(z_km))
-    if p is not None:
-        anomaly_kind = p["anomaly_kind"]
-        v_anom = p["v_anom"]
-        x0_km, z0_km, ax_km, az_km = p["x0_km"], p["z0_km"], p["ax_km"], p["az_km"]
-        water_z, water_z_right = p["water_z"], p["water_z_right"]
-        z_ref = p["z_ref"]
-        preset_note = (p["note"], p.get("notice", []))
+    stride_x    = st.slider("Output x decimation (bigger = faster)", min_value=1, max_value=10, value=4, step=1)
+    stride_t    = st.slider("Output t decimation (bigger = faster)", min_value=1, max_value=10, value=2, step=1)
 
 # -----------------------------
 # Build model
