@@ -23,84 +23,6 @@ def ricker(f, dt, nt, t0=0.0):
 def integrate_vertical_time(v_col, dz):
     return np.sum((1.0 / np.maximum(v_col, 1.0)) * dz)
 
-# -----------------------------
-# Eikonal & migration helpers
-# -----------------------------
-def _interp2_linear(V, xo_m, zo_m, xg_m, zg_m):
-    Vx = np.empty((len(zo_m), len(xg_m)), dtype=float)
-    for j in range(len(zo_m)):
-        Vx[j, :] = np.interp(xg_m, xo_m, V[j, :])
-    Vg = np.empty((len(zg_m), len(xg_m)), dtype=float)
-    for i in range(len(xg_m)):
-        Vg[:, i] = np.interp(zg_m, zo_m, Vx[:, i])
-    return Vg
-
-def _eikonal_update(a, b, s, h):
-    if a > b:
-        a, b = b, a
-    t = a + s * h
-    if (b - a) < s * h:
-        disc = 2 * (s * h) ** 2 - (b - a) ** 2
-        if disc > 0:
-            t = (a + b + np.sqrt(disc)) / 2.0
-    return t
-
-def eikonal_fast_sweeping(speed, h, src_i, src_j, n_sweeps=6):
-    nz, nx = speed.shape
-    T = np.full((nz, nx), np.inf, dtype=float)
-    T[src_j, src_i] = 0.0
-    s = 1.0 / np.maximum(speed, 1.0)
-    sweep_orders = [
-        (range(nz), range(nx)),
-        (range(nz - 1, -1, -1), range(nx)),
-        (range(nz), range(nx - 1, -1, -1)),
-        (range(nz - 1, -1, -1), range(nx - 1, -1, -1)),
-    ]
-    for _ in range(n_sweeps):
-        for rows, cols in sweep_orders:
-            for j in rows:
-                for i in cols:
-                    if i == src_i and j == src_j:
-                        continue
-                    a = min(T[j, i - 1] if i > 0 else np.inf, T[j, i + 1] if i < nx - 1 else np.inf)
-                    b = min(T[j - 1, i] if j > 0 else np.inf, T[j + 1, i] if j < nz - 1 else np.inf)
-                    Tij = _eikonal_update(a, b, s[j, i], h)
-                    if Tij < T[j, i]:
-                        T[j, i] = Tij
-    return T
-
-def compute_bent_twt(V, x_km, z_km, z_ref_m, nx_eik=151, ray_stride=6):
-    nz_o, nx_o = V.shape
-    xo_m = np.linspace(0, x_km * 1000.0, nx_o)
-    zo_m = np.linspace(0, z_km * 1000.0, nz_o)
-
-    nxe = int(nx_eik)
-    hx = (x_km * 1000.0) / (nxe - 1)
-    nze = int(np.round(z_km * 1000.0 / hx)) + 1
-    xg_m = np.linspace(0, x_km * 1000.0, nxe)
-    zg_m = np.linspace(0, (nze - 1) * hx, nze)
-
-    Vg = _interp2_linear(V, xo_m, zo_m, xg_m, zg_m)
-
-    x_orig_km = np.linspace(0, x_km, nx_o)
-    idxs = np.arange(0, nx_o, max(1, ray_stride))
-    TWT_partial = np.full_like(x_orig_km, np.nan, dtype=float)
-
-    j_ref = int(np.clip(np.round(z_ref_m / hx), 0, nze - 1))
-
-    for ix in idxs:
-        src_i = int(np.clip(np.round((x_orig_km[ix] * 1000.0) / hx), 0, nxe - 1))
-        T = eikonal_fast_sweeping(Vg, hx, src_i=src_i, src_j=0, n_sweeps=6)
-        t_down = np.min(T[j_ref, :])
-        TWT_partial[ix] = 2.0 * t_down
-
-    good = np.isfinite(TWT_partial)
-    if good.sum() >= 2:
-        TWT_full = np.interp(x_orig_km, x_orig_km[good], TWT_partial[good])
-    else:
-        TWT_full = TWT_partial
-    return TWT_full
-
 def kirchhoff_time_migration(section, dt, x_km, v_mig, stride_x=4, stride_t=2, aperture_km=None):
     nt, nx = section.shape
     x = np.linspace(0.0, x_km, nx)
@@ -191,12 +113,6 @@ with st.sidebar:
     dt   = st.select_slider("Sample rate dt (ms)", options=[0.5, 1.0, 2.0, 4.0, 8.0], value=2.0)
 
     st.divider()
-    st.subheader("Ray-bending (eikonal)")
-    do_bending = st.checkbox("Compute bent-ray TWT to deep reflector (slower)", value=False)
-    ray_nx     = st.slider("Eikonal grid NX (coarse)", 81, 241, 151, 10)
-    ray_stride = st.slider("Ray compute stride (surface decimation)", 1, 12, 6, 1)
-
-    st.divider()
     st.subheader("Poststack time migration (constant-velocity)")
     do_mig      = st.checkbox("Show migrated view (Kirchhoff)", value=False)
     v_mig       = st.number_input("Migration velocity v (m/s)", 1500, 6000, int(v_sed), 50)
@@ -229,7 +145,7 @@ if anomaly_kind.startswith("Fast") or anomaly_kind.startswith("Slow"):
 
 V = np.clip(V, 200.0, 7000.0)
 
-# Two-way times
+# Two-way times (vertical rays)
 z_ref_arr = np.maximum(z_seabed + 5.0, min(z_ref, int(z_km * 1000.0) - 1))
 z_axis = Z[:, 0]
 oneway_t_seabed = np.zeros(nx)
@@ -248,7 +164,7 @@ for ix in range(nx):
 TWT_seabed = 2.0 * oneway_t_seabed
 TWT_ref    = 2.0 * oneway_t_ref
 
-# Baseline (no anomaly) for comparison
+# Baseline (no anomaly) for comparison (vertical rays)
 V0 = np.where(Z < z_seabed[None, :], v_water, v_sed).astype(float)
 oneway_t_ref0 = np.zeros(nx)
 for ix in range(nx):
@@ -256,12 +172,6 @@ for ix in range(nx):
     krf = int(np.clip(np.searchsorted(z_axis, zrf), 1, nz - 1))
     oneway_t_ref0[ix] = integrate_vertical_time(V0[:krf, ix], dz)
 TWT_ref0 = 2.0 * oneway_t_ref0
-
-# Bent-ray TWT (optional)
-TWT_ref_bent = None
-if do_bending:
-    with st.spinner("Computing eikonal travel times…"):
-        TWT_ref_bent = compute_bent_twt(V, x_km, z_km, float(np.mean(z_ref_arr)), nx_eik=ray_nx, ray_stride=ray_stride)
 
 # -----------------------------
 # Build a simple zero-offset synthetic (two reflectors)
@@ -322,8 +232,6 @@ with colR:
     ax2.plot(x_axis_km, TWT_seabed, label='Seabed TWT', lw=1.2)
     ax2.plot(x_axis_km, TWT_ref, label='Deep reflector TWT (vertical rays)', lw=1.8)
     ax2.plot(x_axis_km, TWT_ref0, label='Deep reflector TWT (no body)', lw=1.0, linestyle='--')
-    if TWT_ref_bent is not None:
-        ax2.plot(x_axis_km, TWT_ref_bent, label='Deep reflector TWT (bent rays, eikonal)', lw=1.3)
     ax2.set_xlabel('Distance (km)')
     ax2.set_ylabel('Time (s)')
     ax2.invert_yaxis()
@@ -362,7 +270,7 @@ with colM:
 
 st.info(
     "**Reading the panels:**  Left: velocity model + bathymetry. "
-    "Right: TWT curves; compare vertical-ray, bent-ray, and no-body. "
+    "Right: TWT curves (vertical rays) with and without the body. "
     "Bottom-left: unmigrated synthetic. Bottom-right: migrated (constant-v). "
     "Try under/over v_mig to see smile/frown."
 )
