@@ -255,7 +255,7 @@ V = np.where(Z < z_seabed[None, :], v_water, v_sed).astype(float)
 # Apply anomaly ellipse (only below seabed)
 ellipse = (((X - x0_km*1000)/(ax_km*1000))**2 + ((Z - z0_km*1000)/(az_km*1000))**2) <= 1.0
 if anomaly_kind.startswith("Fast") or anomaly_kind.startswith("Slow"):
-    V = np.where(ellipse & (Z >= ZSB), float(v_anom), V)
+    V = np.where(ellipse & (Z >= z_seabed[None, :]), float(v_anom), V)
 
 V = np.clip(V, 200.0, 7000.0)
 
