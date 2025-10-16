@@ -164,18 +164,20 @@ with st.sidebar:
     v_water = st.number_input("Water velocity", 1300, 1700, 1480, 10)
     v_sed = st.number_input("Sediment velocity", 1800, 4500, 2200, 50)
 
-  st.subheader("Bathymetry / Seabed")
-water_z = st.slider("Water depth at left (m)", 0, int(z_km*1000)-50, 300, 10)
-water_z_right = st.slider("Water depth at right (m)", 0, int(z_km*1000)-50, 300, 10)
+    st.subheader("Bathymetry / Seabed")
+    water_z = st.slider("Water depth at left (m)", 0, int(z_km*1000)-50, 300, 10)
+    water_z_right = st.slider("Water depth at right (m)", 0, int(z_km*1000)-50, 300, 10)
 
-# NEW: Rugose seabed controls
-enable_rugosity = st.checkbox("Enable rugose seabed (add sinusoid)", value=False)
-if enable_rugosity:
-    rug_amp = st.slider("Rugosity amplitude (m)", 5, 200, 50, 5)
-    rug_wlen_km = st.slider("Rugosity wavelength (km)", 0.1, max(0.2, float(x_km)), min(1.0, float(x_km)), 0.1)
-    rug_phase_deg = st.slider("Phase (deg)", 0, 360, 0, 10)
-else:
-    rug_amp, rug_wlen_km, rug_phase_deg = 0.0, 1.0, 0
+    # NEW: Rugose seabed controls
+    enable_rugosity = st.checkbox("Enable rugose seabed (add sinusoid)", value=False)
+    if enable_rugosity:
+        rug_amp = st.slider("Rugosity amplitude (m)", 5, 200, 50, 5)
+        rug_wlen_km = st.slider("Rugosity wavelength (km)", 0.1, max(0.2, float(x_km)), min(1.0, float(x_km)), 0.1)
+        rug_phase_deg = st.slider("Phase (deg)", 0, 360, 0, 10)
+    else:
+        rug_amp = 0.0
+        rug_wlen_km = 1.0
+        rug_phase_deg = 0
 
 
     st.subheader("Target reflector (true depth)")
@@ -235,8 +237,8 @@ if preset_enable and preset_name != "None (custom)":
 X, Z, dx, dz = make_grid(nx, nz, x_km=x_km, z_km=z_km)
 
 # Seabed/bathymetry: linear plane + optional sinusoidal rugosity
-x_m = np.linspace(0.0, x_km*1000.0, nx)                       # meters
-z_lin = np.linspace(water_z, water_z_right, nx)               # linear tilt
+x_m = np.linspace(0.0, x_km*1000.0, nx)
+z_lin = np.linspace(water_z, water_z_right, nx)
 if enable_rugosity and rug_amp > 0:
     phase = np.deg2rad(rug_phase_deg)
     z_seabed = z_lin + rug_amp * np.sin(2*np.pi * x_m / (rug_wlen_km*1000.0) + phase)
