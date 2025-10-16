@@ -312,7 +312,6 @@ colL, colR = st.columns([1.1, 1.0])
 
 with colL:
     st.subheader("Velocity model")
-    show_preset_note(preset_note)
     fig, ax = plt.subplots(figsize=(8, 5))
     im = ax.imshow(V, extent=[0, x_km, z_km, 0], aspect='auto')
     ax.plot(np.linspace(0, x_km, nx), z_seabed/1000.0, lw=1.2, label='Seabed', alpha=0.9)
