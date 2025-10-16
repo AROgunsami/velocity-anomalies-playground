@@ -230,7 +230,7 @@ with colR:
     x_axis_km = np.linspace(0, x_km, nx)
     fig2, ax2 = plt.subplots(figsize=(8, 5))
     ax2.plot(x_axis_km, TWT_seabed, label='Seabed TWT', lw=1.2)
-    ax2.plot(x_axis_km, TWT_ref, label='Deep reflector TWT (vertical rays, given the velocity anomaly)', lw=1.8)
+    ax2.plot(x_axis_km, TWT_ref, label='Deep reflector TWT (vertical rays)', lw=1.8)
     ax2.plot(x_axis_km, TWT_ref0, label='Deep reflector TWT (no velocity anomaly )', lw=1.0, linestyle='--')
     ax2.set_xlabel('Distance (km)')
     ax2.set_ylabel('Time (s)')
