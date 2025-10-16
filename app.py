@@ -164,9 +164,19 @@ with st.sidebar:
     v_water = st.number_input("Water velocity", 1300, 1700, 1480, 10)
     v_sed = st.number_input("Sediment velocity", 1800, 4500, 2200, 50)
 
-    st.subheader("Bathymetry / Seabed")
-    water_z = st.slider("Water depth at left (m)", 0, int(z_km*1000)-50, 300, 10)
-    water_z_right = st.slider("Water depth at right (m)", 0, int(z_km*1000)-50, 300, 10)
+  st.subheader("Bathymetry / Seabed")
+water_z = st.slider("Water depth at left (m)", 0, int(z_km*1000)-50, 300, 10)
+water_z_right = st.slider("Water depth at right (m)", 0, int(z_km*1000)-50, 300, 10)
+
+# NEW: Rugose seabed controls
+enable_rugosity = st.checkbox("Enable rugose seabed (add sinusoid)", value=False)
+if enable_rugosity:
+    rug_amp = st.slider("Rugosity amplitude (m)", 5, 200, 50, 5)
+    rug_wlen_km = st.slider("Rugosity wavelength (km)", 0.1, max(0.2, float(x_km)), min(1.0, float(x_km)), 0.1)
+    rug_phase_deg = st.slider("Phase (deg)", 0, 360, 0, 10)
+else:
+    rug_amp, rug_wlen_km, rug_phase_deg = 0.0, 1.0, 0
+
 
     st.subheader("Target reflector (true depth)")
     z_ref = st.slider("Reflector depth below sea surface (m)", 200, int(z_km*1000)-50, 1500, 10)
