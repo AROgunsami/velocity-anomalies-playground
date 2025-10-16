@@ -237,7 +237,7 @@ if preset_enable and preset_name != "None (custom)":
 X, Z, dx, dz = make_grid(nx, nz, x_km=x_km, z_km=z_km)
 
 # Seabed/bathymetry: linear plane + optional sinusoidal rugosity
-x_m = np.linspace(0.0, x_km*1000.0, nx)
+x_m   = np.linspace(0.0, x_km*1000.0, nx)
 z_lin = np.linspace(water_z, water_z_right, nx)
 if enable_rugosity and rug_amp > 0:
     phase = np.deg2rad(rug_phase_deg)
@@ -246,7 +246,11 @@ else:
     z_seabed = z_lin
 
 # Background velocity
-V = np.where(Z < ZSB, v_water, v_sed).astype(float)
+# Before (failing):
+# V = np.where(Z < ZSB, v_water, v_sed).astype(float)
+
+# After (works without ZSB):
+V = np.where(Z < z_seabed[None, :], v_water, v_sed).astype(float)
 
 # Apply anomaly ellipse (only below seabed)
 ellipse = (((X - x0_km*1000)/(ax_km*1000))**2 + ((Z - z0_km*1000)/(az_km*1000))**2) <= 1.0
