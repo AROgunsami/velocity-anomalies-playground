@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
 
+from app_preset_lib import get_preset, show_preset_note
 
 # -----------------------------
 # Basic helpers
@@ -168,18 +169,6 @@ with st.sidebar:
     water_z = st.slider("Water depth at left (m)", 0, int(z_km*1000)-50, 300, 10)
     water_z_right = st.slider("Water depth at right (m)", 0, int(z_km*1000)-50, 300, 10)
 
-    # NEW: Rugose seabed controls
-    enable_rugosity = st.checkbox("Enable rugose seabed (add sinusoid)", value=False)
-    if enable_rugosity:
-        rug_amp = st.slider("Rugosity amplitude (m)", 5, 200, 50, 5)
-        rug_wlen_km = st.slider("Rugosity wavelength (km)", 0.1, max(0.2, float(x_km)), min(1.0, float(x_km)), 0.1)
-        rug_phase_deg = st.slider("Phase (deg)", 0, 360, 0, 10)
-    else:
-        rug_amp = 0.0
-        rug_wlen_km = 1.0
-        rug_phase_deg = 0
-
-
     st.subheader("Target reflector (true depth)")
     z_ref = st.slider("Reflector depth below sea surface (m)", 200, int(z_km*1000)-50, 1500, 10)
 
@@ -236,26 +225,17 @@ if preset_enable and preset_name != "None (custom)":
 # -----------------------------
 X, Z, dx, dz = make_grid(nx, nz, x_km=x_km, z_km=z_km)
 
-# Seabed/bathymetry: linear plane + optional sinusoidal rugosity
-x_m   = np.linspace(0.0, x_km*1000.0, nx)
-z_lin = np.linspace(water_z, water_z_right, nx)
-if enable_rugosity and rug_amp > 0:
-    phase = np.deg2rad(rug_phase_deg)
-    z_seabed = z_lin + rug_amp * np.sin(2*np.pi * x_m / (rug_wlen_km*1000.0) + phase)
-else:
-    z_seabed = z_lin
+# Seabed/bathymetry as a linear plane from left to right
+z_seabed = np.linspace(water_z, water_z_right, nx)  # meters
+ZSB = np.tile(z_seabed, (nz,1))
 
 # Background velocity
-# Before (failing):
-# V = np.where(Z < ZSB, v_water, v_sed).astype(float)
-
-# After (works without ZSB):
-V = np.where(Z < z_seabed[None, :], v_water, v_sed).astype(float)
+V = np.where(Z < ZSB, v_water, v_sed).astype(float)
 
 # Apply anomaly ellipse (only below seabed)
 ellipse = (((X - x0_km*1000)/(ax_km*1000))**2 + ((Z - z0_km*1000)/(az_km*1000))**2) <= 1.0
 if anomaly_kind.startswith("Fast") or anomaly_kind.startswith("Slow"):
-    V = np.where(ellipse & (Z >= z_seabed[None, :]), float(v_anom), V)
+    V = np.where(ellipse & (Z >= ZSB), float(v_anom), V)
 
 V = np.clip(V, 200.0, 7000.0)
 
@@ -333,6 +313,7 @@ colL, colR = st.columns([1.1, 1.0])
 
 with colL:
     st.subheader("Velocity model")
+    show_preset_note(preset_note)
     fig, ax = plt.subplots(figsize=(8, 5))
     im = ax.imshow(V, extent=[0, x_km, z_km, 0], aspect='auto')
     ax.plot(np.linspace(0, x_km, nx), z_seabed/1000.0, lw=1.2, label='Seabed', alpha=0.9)
